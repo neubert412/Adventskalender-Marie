@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Adventskalender</title>
+  <title>Adventskalender für Marie ♥️</title>
   <style>
     :root {
       --bg-dark: #10241c;
@@ -242,3 +242,155 @@
         { day: 19, emoji: "🎁", title: "Kleine Hoffnung", text: "Manchmal braucht es nur einen ehrlichen Moment, um wieder zueinanderzufinden." },
         { day: 20, emoji: "✨", title: "Was ich schätze", text: "Ich schätze dein Lachen, deine Art und alles, was wir geteilt haben, mehr denn je." },
         { day: 21, emoji: "🏔️", title: "Neues Licht", text: "Ab heute werden die Tage wieder länger – vielleicht auch für uns ein neuer Anfang." },
+        { day: 22, emoji: "🔔", title: "Offenes Ohr", text: "Wenn dir etwas auf dem Herzen liegt, kannst du jederzeit mit mir sprechen." },
+        { day: 23, emoji: "❤️", title: "Vorfreude", text: "Der Gedanke an ein ehrliches Gespräch mit dir macht diese Tage besonders." },
+        { day: 24, emoji: "🎄", title: "Von Herzen", text: "Frohe Weihnachten. Egal wo wir stehen: Du bedeutest mir noch immer sehr viel." }
+      ];
+
+      const STORAGE_KEY = "adventskalender_opened_v1";
+      let dateLockEnabled = true;
+
+      const gridEl = document.getElementById("calendarGrid");
+      const toggleLockBtn = document.getElementById("toggleDateLockBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const subtitleEl = document.getElementById("subtitle");
+
+      const modalBackdrop = document.getElementById("modalBackdrop");
+      const modalEmoji = document.getElementById("modalEmoji");
+      const modalImage = document.getElementById("modalImage");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalText = document.getElementById("modalText");
+      const closeModalBtn = document.getElementById("closeModalBtn");
+
+      if (!gridEl) return;
+
+      function getImagePath(day) {
+        return `${IMAGE_FOLDER}${IMAGE_PREFIX}${day}${IMAGE_EXT}`;
+      }
+
+      function getOpenedDays() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveOpenedDays(days) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(days));
+        } catch {}
+      }
+
+      function isDoorUnlocked(day) {
+        if (!dateLockEnabled) return true;
+        const now = new Date();
+        const month = now.getMonth();
+        const date = now.getDate();
+
+        if (month < 11) return false;
+        if (month > 11) return true;
+        return date >= day;
+      }
+
+      function openModal(doorData) {
+        modalEmoji.textContent = doorData.emoji;
+        modalTitle.textContent = `Türchen ${doorData.day}: ${doorData.title}`;
+        modalText.textContent = doorData.text;
+
+        const imgPath = getImagePath(doorData.day);
+        modalImage.classList.remove("visible");
+        modalImage.alt = `Bild zu Türchen ${doorData.day}: ${doorData.title}`;
+        modalImage.onload = () => {
+          modalImage.classList.add("visible");
+        };
+        modalImage.onerror = () => {
+          modalImage.classList.remove("visible");
+        };
+        modalImage.src = imgPath;
+
+        modalBackdrop.classList.add("active");
+      }
+
+      function openLockedModal(day) {
+        modalEmoji.textContent = "🔒";
+        modalImage.classList.remove("visible");
+        modalImage.removeAttribute("src");
+        modalTitle.textContent = `Türchen ${day}`;
+        modalText.textContent = `Dieses Türchen öffnet sich erst am ${day}. Dezember (oder wenn du oben die Datums-Sperre ausschaltest).`;
+        modalBackdrop.classList.add("active");
+      }
+
+      function closeModal() {
+        modalBackdrop.classList.remove("active");
+      }
+
+      function renderCalendar() {
+        const openedDays = getOpenedDays();
+        gridEl.innerHTML = "";
+
+        subtitleEl.textContent = dateLockEnabled
+          ? "Türchen lassen sich ab dem jeweiligen Dezembertag öffnen."
+          : "Testmodus aktiv: Alle 24 Türchen können geöffnet werden.";
+
+        doorsData.forEach((door) => {
+          const unlocked = isDoorUnlocked(door.day);
+          const isOpened = openedDays.includes(door.day);
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "door";
+          if (isOpened) btn.classList.add("opened");
+          if (!unlocked && !isOpened) btn.classList.add("locked");
+
+          btn.innerHTML = `
+            <span class="door-number">${door.day}</span>
+            <span class="door-status">
+              ${isOpened ? `${door.emoji} Geöffnet` : unlocked ? "Öffnen" : "Gesperrt"}
+            </span>
+          `;
+
+          btn.addEventListener("click", () => {
+            if (!unlocked && !isOpened) {
+              openLockedModal(door.day);
+              return;
+            }
+
+            if (!isOpened) {
+              openedDays.push(door.day);
+              saveOpenedDays(openedDays);
+              renderCalendar();
+            }
+            openModal(door);
+          });
+
+          gridEl.appendChild(btn);
+        });
+      }
+
+      toggleLockBtn.addEventListener("click", () => {
+        dateLockEnabled = !dateLockEnabled;
+        toggleLockBtn.textContent = `Datums-Sperre: ${dateLockEnabled ? "AN" : "AUS"}`;
+        renderCalendar();
+      });
+
+      resetBtn.addEventListener("click", () => {
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch {}
+        renderCalendar();
+      });
+
+      closeModalBtn.addEventListener("click", closeModal);
+      modalBackdrop.addEventListener("click", (e) => {
+        if (e.target === modalBackdrop) closeModal();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeModal();
+      });
+
+      renderCalendar();
+    });
+  </script>
+</body>
+</html>
